@@ -1,0 +1,13 @@
+Make Curves and log-rank P-values for pairwise for 
+Fine_SevClass_081913 tabs KM_E KM_CE Cardiac
+
+Significance between classes Male/Female - DMF-Eason SAS NIH Tab Population SAS
+Frequency ChiSquare Test for Sex collapse M/F - Others show females overpopulate
+
+Age associated with increase in survival
+collinearity with PG - Toby was wondering this
+Is age significant in MV, only PG was significant
+
+
+
+

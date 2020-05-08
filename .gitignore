@@ -1,0 +1,7 @@
+# Exclusions
+/survs
+*.log
+/SAS_Pre080513
+*.png
+import_xlsx.sas
+Fine_080513.sas
