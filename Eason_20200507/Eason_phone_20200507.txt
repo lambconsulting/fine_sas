@@ -10,4 +10,15 @@ Is age significant in MV, only PG was significant
 
 
 
+On 5/12/2020 10:55 AM, Bryan Eason wrote:
+> Hi Ken,
+>
+>     Sorry for the delay getting back to you. Things got busy at work and now they are slow again.
+>
+>     Survival curves look appropriate to me. If there are any suggestions from other authors, it sounds like the editing would be fairly easy at this point. 
+>
+>     As for the gender data. If I am understanding your question correctly, the last column in the Data tab labeled sex_exp should have the gender distribution for the animals that were included in the survival analysis. In the DMF-EASON- SAS NH file under the tab Population SAS, there are more animals because this was looking at the entire population of the study. Some of these were excluded from survival analysis because we didn't have sufficient data to carry them through. But this may be the most appropriate tab to work with as we are only trying to answer whether or not there is a gender predisposition, and that is regardless of the severity of disease. Given that, maybe a "one-off" is the most appropriate way to approach this question as the two data sets do have differences. 
+>
 
+*** Took Population SAS Tab from DMF - Eason - SAS NIH.xlsx for chis square 
+and imported dataset into main program as gender_chi_20200514.sas7bdat.

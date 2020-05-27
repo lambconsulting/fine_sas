@@ -29,7 +29,16 @@ libname fine "&path.";
 /*     USEDATE=YES;*/
 /*     SCANTIME=YES;*/
 /*RUN;*/
-proc contents data = fine.beta; run;
+
+
+/* Ad Hoc Gender Compare 20200514 */
+
+
+data gender_chi_20200514; 
+set fine.gender_chi_20200514; 
+female = sex in ("F", "FS");
+run;
+
 
 PROC FORMAT;		
 	VALUE sev_fmt
@@ -37,14 +46,17 @@ PROC FORMAT;
 	VALUE sex_exp_fmt
    		1 = 'F' 2 = 'FS' 3 = 'M' 4 = 'MC';
 		run;
-	proc freq data = fine.beta;
-	tables sex sex_1;
-	run;
+
+
 
 data beta;
 set fine.beta;
 
-female = sex in ('F');
+/*female = sex in ('F');*/
+/* Corrected Gender assignment 20200514 */
+female = sex in ('F', 'FS');
+/* Sensitivity gender assignment for impact of exclusing FS as female and including as male 20200514 */
+female_ns = sex in ('F');
 
 if cond in ('Mild') then Sev = 1;
 if cond in ('Moderate') then Sev = 2;
@@ -87,12 +99,28 @@ format sev sev_fmt.;
 ;
 run;
 
-	proc freq data = fine.beta;
-	tables (sex sex_1)*(e ce);
-	run;
+
+/* Adding ChiSq 20200514 for follow-up */
+
+/* DMF Eason Full Population */
+proc freq data=gender_chi_20200514;
+tables female / chisq;
+run;
+
+/* Survival Limited Population */
+/*proc freq data = fine.beta;*/
+proc freq data = beta;
+tables sex sex_1 female female_ns / chisq;
+run;
 
 
-data uni; run;
+
+proc freq data = fine.beta;
+tables (sex sex_1)*(e ce);
+run;
+
+
+
 %macro uni (var1);
 proc phreg data = beta;
 model t*e(0) = &var1. / rl;
@@ -107,11 +135,18 @@ length aicc $20;
 set uni aicc&var1.;
 run;
 %mend;
+data uni; set _null_; run;
 %uni(sev);
 %uni(age);
 %uni(pg);
 %uni(female);
-data multi; run;
+%uni(female_ns);
+/*%uni(sex);*/
+/*%uni(sex_1);*/
+/*%uni(sex_exp);*/
+
+
+
 %macro multi (var2,var3);
 proc phreg data = beta;
 class sev;
@@ -127,12 +162,16 @@ length aicc $30;
 set multi aiccsev&var2.&var3.;
 run;
 %mend;
+data multi; set _null_; run;
 %multi(sex_exp,);
 %multi(age,);
 %multi(female,);
+%multi(female_ns,);
 %multi(pg,);
 %multi(pg,female);
 %multi(age,female);
+%multi(pg,female_ns);
+%multi(age,female_ns);
 %multi(age,sex_exp);
 
 data fitstat; run;
@@ -174,13 +213,20 @@ data _null_ ;
 run ;
 
 
-data all_uni; run;
+
+proc reg data = beta;
+model vit_d = alb lactate / vif; run;
+/** AdjR2: 0.1977*/
+* VIF: 10.2554;
+
+
 %macro noclassphreg (event,var1);
 proc phreg data = beta;
 model t*e(0) = &var1. / rl;
 ods output parameterestimates=est_&var1._&event.;
 run;
 data est_&var1._&event.;
+length parameter $50.;
 set est_&var1._&event.;
 length model event $20.;
 model = "est_&var1._&event.";
@@ -190,52 +236,65 @@ data all_uni;
 set all_uni est_&var1._&event.;
 run;
 %mend;
+data all_uni; set _null_; run;
 %noclassphreg(e,age);
 %noclassphreg(e,pg);
 %noclassphreg(e,female);
+%noclassphreg(e,female_ns);
 %noclassphreg(ce,age);
 %noclassphreg(ce,pg);
 %noclassphreg(ce,female);
+%noclassphreg(ce,female_ns);
 
-data all_multi; run;
-%macro classphreg (event,var2,var3);
+/* Adding var4 to allow for severity level (sev), age, pg, and female in the same model 20200515 */
+%macro classphreg (event,var2,var3,var4);
 proc phreg data = beta;
 class sev;
-model t*&event.(0) = sev &var2. &var3.  / rl;
-ods output parameterestimates=est_sev&var2.&var3._&event.;
+model t*&event.(0) = sev &var2. &var3. &var4. / rl;
+ods output parameterestimates=est_sev&var2.&var3.&var4._&event.;
 run;
-data est_sev&var2.&var3._&event.;
-set est_sev&var2.&var3._&event.;
+data est_sev&var2.&var3.&var4._&event.;
+length parameter label $50.;
+set est_sev&var2.&var3.&var4._&event.;
 length model event $20.;
-model = "est_sev&var2.&var3._&event.";
+model = "est_sev&var2.&var3.&var4._&event.";
 event = "&event.";
 run;
 data all_multi;
-set all_multi est_sev&var2.&var3._&event.;
+set all_multi est_sev&var2.&var3.&var4._&event.;
 run;
 %mend;
-
-%classphreg(e,,);
+data all_multi; set _null_; run;
+/* Added female_ns to compare to corrected female category 20200515 */
+%classphreg(e,,,);
 %classphreg(e,sex_exp,);
 %classphreg(e,age,);
 %classphreg(e,pg,);
 %classphreg(e,female,);
+%classphreg(e,female_ns,);
 %classphreg(e,age,female);
+%classphreg(e,age,female_ns);
 %classphreg(e,pg,female);
+%classphreg(e,pg,female_ns);
 %classphreg(e,age,sex_exp);
 %classphreg(e,age,pg);
+%classphreg(e,age,pg,female);
 
 %classphreg(ce,,);
 %classphreg(ce,sex_exp,);
 %classphreg(ce,age,);
 %classphreg(ce,pg,);
 %classphreg(ce,female,);
+%classphreg(ce,female_ns,);
 %classphreg(ce,age,female);
+%classphreg(ce,age,female_ns);
 %classphreg(ce,pg,female);
+%classphreg(ce,pg,female_ns);
 %classphreg(ce,age,sex_exp);
 %classphreg(ce,age,pg);
+%classphreg(ce,age,pg,female);
 
-data allphreg; run;
+data allphreg; set _null_; run;
 data allphreg;
 set allphreg all_uni all_multi;
 run;
@@ -379,7 +438,7 @@ proc print data = cov_means; run;
 proc phreg data=beta_cov;
 strata sev / missing;
   model t*&e.(0) = sev_mild sev_mod sev_sev age  female pg/ risklimits; 
-  baseline out=ADJ_Baseline_&e.
+  baseline out=ADJ_Baseline_&e._20200514
            survival=adj_surv
            stderr=adj_surv_se
            covariates=cov_means / nomean;
@@ -396,6 +455,13 @@ proc export data=ADJ_Baseline_&e.
    dbms=csv replace;
      run;
 */
+
+/* Placing back in to account for corrected female gender assignment 20200514 */
+/*		proc export data=ADJ_Baseline_&e._20200514*/
+/*   outfile="&path.\survs\Adj_BB_Surv_&e._20200514.csv"*/
+/*   dbms=csv replace;*/
+/*     run;*/
+
 %mend;
 %adjsev(e);
 %adjsev(ce);
@@ -460,7 +526,7 @@ run;
 
 
 proc sgplot data= e_mi_mo_se;
-ODS GRAPHICS / RESET IMAGENAME = "e_mi_mo_se" IMAGEFMT =PNG ;
+ODS GRAPHICS / RESET IMAGENAME = "e_mi_mo_se_20200514" IMAGEFMT =PNG ;
 ODS LISTING IMAGE_DPI= 300 GPATH = 'C:\Junk' ; 
 step x= t_mi y=s_mi / LEGENDLABEL = "Mild" LINEATTRS = (color = red THICKNESS = 2 pattern = solid);
 /*step x= &comorb2._&cohort2._t y=&comorb2._&cohort2._s / LEGENDLABEL = "&comorb2. &cohort2." LINEATTRS = (color = red THICKNESS = 2 pattern = dash);*/
@@ -475,7 +541,7 @@ run;
 
 
 proc sgplot data= ce_mi_mo_se;
-ODS GRAPHICS / RESET IMAGENAME = "ce_mi_mo_se" IMAGEFMT =PNG ;
+ODS GRAPHICS / RESET IMAGENAME = "ce_mi_mo_se_20200514" IMAGEFMT =PNG ;
 ODS LISTING IMAGE_DPI= 300 GPATH = 'C:\Junk' ; 
 step x= t_mi y=s_mi / LEGENDLABEL = "Mild" LINEATTRS = (color = red THICKNESS = 2 pattern = solid);
 /*step x= &comorb2._&cohort2._t y=&comorb2._&cohort2._s / LEGENDLABEL = "&comorb2. &cohort2." LINEATTRS = (color = red THICKNESS = 2 pattern = dash);*/
@@ -518,6 +584,18 @@ data log_all; set _null_; run;
 %unadjsev(ce,1,2);
 %unadjsev(ce,1,3);
 %unadjsev(ce,2,3);
+
+/* Adding back unadjusted KM curves for tabs KM_E and KM_CE 20200515 */
+proc lifetest data = beta plots=(s) method = km censoredsymbol = none ;
+strata sev ;
+time t*e(0);
+run;
+
+proc lifetest data = beta plots=(s) method = km censoredsymbol = none ;
+strata sev ;
+time t*ce(0);
+run;
+
 /**/
 /*ProbChiSq	grps	e*/
 /*0.0007	     1      2	e*/
