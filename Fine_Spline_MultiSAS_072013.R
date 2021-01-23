@@ -1,6 +1,11 @@
 
+citation("survival")
+
+
 library(survival)
-sas <- read.csv("E:/Lamb_KL_PERS/Consulting/Fine/Fine_SAS_071313/Fine_SAS_Multi_071313/SAS_Condition_072013.csv")
+#sas <- read.csv("E:/Lamb_KL_PERS/Consulting/Fine/Fine_SAS_071313/Fine_SAS_Multi_071313/SAS_Condition_072013.csv")
+sas <- read.csv("U:/Consulting/KEL/Fine/Fine_SAS_071313/Fine_SAS_Multi_071313/SAS_Pre080513/SAS_Condition_072013.csv")
+
 names(sas) <- tolower(names(sas))
 ls(sas)
 sas_severe = sas(cond="severe")
